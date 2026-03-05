@@ -30,7 +30,6 @@
 }
 html,body{height:100%;background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:14px;overflow:hidden}
 
-
 /* AUTH */
 #auth{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:2000;padding:20px}
 #auth.hide{display:none}
@@ -134,6 +133,14 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:var(--san
 .sub-txt.done{text-decoration:line-through;color:var(--t3)}
 .sub-del{font-size:10px;color:var(--t3);cursor:pointer;padding:2px 4px;border-radius:3px;background:transparent;border:none}
 .sub-del:hover{color:var(--r)}
+
+/* GOAL TABS */
+.goal-tabs{display:flex;gap:0;overflow-x:auto;margin-bottom:14px;border-bottom:1px solid var(--ln);-webkit-overflow-scrolling:touch}
+.goal-tabs::-webkit-scrollbar{display:none}
+.gtab{font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:9px 14px;cursor:pointer;color:var(--t3);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;transition:all .15s;flex-shrink:0}
+.gtab.on{color:var(--g);border-bottom-color:var(--g)}
+.gtab-count{display:inline-block;background:var(--s4);border-radius:8px;padding:1px 5px;font-size:7px;margin-left:4px;vertical-align:middle}
+.gtab.on .gtab-count{background:var(--gd);color:var(--g)}
 
 /* GOAL CARD */
 .goal-card{background:var(--s2);border:1px solid var(--ln);border-radius:12px;padding:14px;margin-bottom:8px}
@@ -272,10 +279,8 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:var(--san
 
     <!-- GOALS PAGE -->
     <div class="page" id="p-goals">
-      <div class="stats">
-        <div class="stat" style="--acc:var(--g)"><div class="stat-lbl">Active Goals</div><div class="stat-val green" id="g-active">0</div></div>
-        <div class="stat" style="--acc:var(--b)"><div class="stat-lbl">Completed</div><div class="stat-val blue" id="g-done">0</div></div>
-      </div>
+      <div class="goal-tabs" id="goal-tabs"></div>
+      <div class="stats" id="goal-stats-row"></div>
       <div id="goals-list"></div>
     </div>
 
@@ -397,6 +402,7 @@ var editSubs = [];
 var activePage = 'today';
 var taskFilter = { priority: '', cat: '', done: 'open' };
 var histFilter = 'week';
+var goalTab = 'month';
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 function pad(n) { return String(n).padStart(2,'0'); }
@@ -665,11 +671,16 @@ function openTaskModal(eid) {
 }
 function renderSubEdit() {
   document.getElementById('sub-list-edit').innerHTML = editSubs.map(function(s,i) {
-    return '<div class="sub-item">'
-      + '<div class="sub-cb'+(s.done?' done':'')+'" onclick="toggleEditSub('+i+')">'+(s.done?'v':'')+'</div>'
-      + '<div class="sub-txt'+(s.done?' done':'")>'+s.text+'</div>')
-      + '<button class="sub-del" onclick="delEditSub('+i+')">x</button>'
-      + '</div>';
+    var sd = s.done ? ' done' : '';
+    var h = [];
+    h.push('<div class="sub-item">');
+    h.push('<div class="sub-cb'+sd+'" onclick="toggleEditSub('+i+')">');
+    h.push(s.done ? 'v' : '');
+    h.push('</div>');
+    h.push('<div class="sub-txt'+sd+'">'+esc(s.text)+'</div>');
+    h.push('<button class="sub-del" onclick="delEditSub('+i+')">x</button>');
+    h.push('</div>');
+    return h.join('');
   }).join('');
 }
 function addSubtask() {
@@ -738,6 +749,7 @@ function openGoalModal(eid) {
     ['g-title','g-desc','g-emoji','g-date'].forEach(function(id){ document.getElementById(id).value=''; });
     document.getElementById('g-period').value='month';
   }
+  if (!eid) document.getElementById('g-period').value = goalTab;
   openMo('goal');
   setTimeout(function(){ document.getElementById('g-title').focus(); }, 200);
 }
@@ -873,16 +885,36 @@ function setFilter(key, val) {
 }
 
 function renderGoals() {
-  var active = D.goals.filter(function(g){return !g.done;});
-  var done = D.goals.filter(function(g){return g.done;});
-  document.getElementById('g-active').textContent = active.length;
-  document.getElementById('g-done').textContent = done.length;
+  var PERIODS = ['day','week','month','quarter','year'];
+  var LABELS = {day:'Daily',week:'Weekly',month:'Monthly',quarter:'Quarterly',year:'Yearly'};
+
+  // Render tabs
+  var tabsEl = document.getElementById('goal-tabs');
+  tabsEl.innerHTML = PERIODS.map(function(p) {
+    var cnt = D.goals.filter(function(g){ return (g.period||'month')===p && !g.done; }).length;
+    return '<div class="gtab'+(goalTab===p?' on':'')+'" data-p="'+p+'" onclick="setGoalTab(this.dataset.p)">'
+      + LABELS[p]
+      + '<span class="gtab-count">'+cnt+'</span>'
+      + '</div>';
+  }).join('');
+
+  // Stats for current tab
+  var tabGoals = D.goals.filter(function(g){ return (g.period||'month')===goalTab; });
+  var activeTab = tabGoals.filter(function(g){ return !g.done; }).length;
+  var doneTab = tabGoals.filter(function(g){ return g.done; }).length;
+  var statsEl = document.getElementById('goal-stats-row');
+  statsEl.innerHTML = '<div class="stat" style="--acc:var(--g)"><div class="stat-lbl">Active</div><div class="stat-val green">'+activeTab+'</div></div>'
+    + '<div class="stat" style="--acc:var(--b)"><div class="stat-lbl">Completed</div><div class="stat-val blue">'+doneTab+'</div></div>';
+
   var el = document.getElementById('goals-list');
-  if (!D.goals.length) { el.innerHTML = '<div class="empty"><div class="empty-ico">&#9654;</div><div class="empty-txt">Set your first goal</div></div>'; return; }
-  var PERIODS = {day:'Daily',week:'Weekly',month:'Monthly',quarter:'Quarterly',year:'Yearly',custom:'Custom'};
-  el.innerHTML = D.goals.map(function(g) {
-    var linked = D.tasks.filter(function(t){return t.goalId===g.id;});
-    var doneTasks = linked.filter(function(t){return t.done;}).length;
+  if (!tabGoals.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-ico">&#9654;</div><div class="empty-txt">No '+LABELS[goalTab].toLowerCase()+' goals yet</div></div>';
+    return;
+  }
+
+  el.innerHTML = tabGoals.map(function(g) {
+    var linked = D.tasks.filter(function(t){ return t.goalId===g.id; });
+    var doneTasks = linked.filter(function(t){ return t.done; }).length;
     var pct = linked.length ? Math.round((doneTasks/linked.length)*100) : 0;
     var barCol = pct>=100?'var(--g)':pct>=50?'var(--b)':'var(--a)';
     var dl = g.date ? Math.ceil((new Date(g.date+'T00:00:00')-new Date())/(1000*60*60*24)) : null;
@@ -893,14 +925,14 @@ function renderGoals() {
     h.push('<div class="goal-header">');
     h.push('<div class="goal-em">'+(g.emoji||'*')+'</div>');
     h.push('<div class="goal-info">');
-    h.push('<div class="goal-title">'+esc(g.title)+'</div>');
-    h.push('<div class="goal-period">'+(PERIODS[g.period]||g.period)+(dlTxt?' - '+dlTxt:'')+'</div>');
+    h.push('<div class="goal-title">'+(g.title ? esc(g.title) : '<span style="color:var(--t3)">Untitled Goal</span>')+'</div>');
     if (g.desc) h.push('<div style="font-size:12px;color:var(--t2);margin-top:3px">'+esc(g.desc)+'</div>');
+    if (dlTxt) h.push('<div class="goal-period">'+dlTxt+'</div>');
     h.push('</div>');
     h.push('<div class="goal-pct" style="color:'+barCol+'">'+pct+'%</div>');
     h.push('</div>');
     h.push('<div class="pbar"><div class="pfill" style="width:'+pct+'%;background:'+barCol+'"></div></div>');
-    h.push('<div class="goal-foot"><span>'+doneTasks+' / '+linked.length+' tasks done</span>'+(dlTxt?'<span>'+dlTxt+'</span>':'')+'</div>');
+    h.push('<div class="goal-foot"><span>'+doneTasks+' / '+linked.length+' tasks</span>'+(dlTxt?'<span style="color:'+(dl<0?'var(--r)':dl===0?'var(--a)':'var(--t2)')+'">'+dlTxt+'</span>':'')+'</div>');
     h.push('<div class="goal-actions">');
     h.push('<button class="task-btn" data-gid="'+g.id+'" onclick="addTaskForGoal(this.dataset.gid)">+ Task</button>');
     h.push('<button class="task-btn" data-id="'+g.id+'" onclick="openGoalModal(this.dataset.id)">Edit</button>');
@@ -910,6 +942,7 @@ function renderGoals() {
     return h.join('');
   }).join('');
 }
+function setGoalTab(p) { goalTab = p; renderGoals(); }
 
 function addTaskForGoal(gid) {
   openTaskModal(null);
