@@ -869,7 +869,10 @@ function renderTasks() {
     + cats.map(function(c){ return '<div class="fpill'+(taskFilter.cat===c?' on':'')+'" onclick="setFilter(\'cat\',\''+esc(c)+'\')">'+esc(c)+'</div>'; }).join('');
 
   var q = (document.getElementById('task-search').value||'').toLowerCase();
-  var list = D.tasks.slice();
+  var list = D.tasks.slice().sort(function(a,b) {
+    var ad = a.due||'9999-99-99', bd = b.due||'9999-99-99';
+    return ad.localeCompare(bd);
+  });
   if (taskFilter.done==='open') list = list.filter(function(t){return !t.done;});
   else if (taskFilter.done==='done') list = list.filter(function(t){return t.done;});
   if (taskFilter.priority) list = list.filter(function(t){return t.priority===taskFilter.priority;});
