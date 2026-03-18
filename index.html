@@ -210,7 +210,7 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:var(--san
 <body>
 
 <!-- AUTH -->
-<div id="auth">
+<div id="auth" class="hide">
   <div class="ab">
     <div class="ab-icon">&#10003;</div>
     <div class="ab-name">TASKS</div>
@@ -584,6 +584,20 @@ function doMagic() {
 }
 function doSignOut() { closeMo('profile'); if (confirm('Sign out?')) SB.auth.signOut(); }
 function openProfile() { document.getElementById('prof-email').textContent = ME ? ME.email : ''; openMo('profile'); }
+
+// Fix: check for existing session on load (fixes blank screen on phone/new device)
+SB.auth.getSession().then(function(res) {
+  var session = res.data && res.data.session;
+  if (session) {
+    ME = session.user;
+    document.getElementById('auth').classList.add('hide');
+    document.getElementById('app').classList.remove('hide');
+    loadLocal(); pullCloud(); renderAll();
+  } else {
+    document.getElementById('auth').classList.remove('hide');
+    document.getElementById('app').classList.add('hide');
+  }
+});
 
 SB.auth.onAuthStateChange(function(event, session) {
   if (session) {
