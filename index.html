@@ -254,7 +254,7 @@ const SB = supabase.createClient(
 );
 
 // ─── DATA ────────────────────────────────────────────────────
-const LK = 'tasks_v1';
+const LK = 'tasks_v3';
 let ME = null;
 let D = { tasks: [], goals: [] };
 let activeTab = 'today';
@@ -328,41 +328,15 @@ function loadLocal() {
 
 function dataCount() { return D.tasks.length + D.goals.length; }
 
-function mergeFromCloud(cloudData) {
-  if (!cloudData) return false;
-  const cloudTasks = cloudData.tasks || [];
-  const cloudGoals = cloudData.goals || [];
-
-  // Merge tasks: cloud wins for completion state if newer, local wins for new items
-  const taskMap = {};
-  D.tasks.forEach(t => taskMap[t.id] = t);
-  cloudTasks.forEach(function(ct) {
-    if (!taskMap[ct.id]) {
-      D.tasks.push(ct);
-    } else {
-      const local = taskMap[ct.id];
-      if (ct.done && !local.done) {
-        Object.assign(local, ct);
-      } else if (!ct.done && local.done) {
-        // keep local
-      } else {
-        Object.assign(local, ct);
-      }
-    }
-  });
-
-  // Merge goals: cloud wins
-  const goalMap = {};
-  D.goals.forEach(g => goalMap[g.id] = g);
-  cloudGoals.forEach(function(cg) {
-    if (!goalMap[cg.id]) D.goals.push(cg);
-    else Object.assign(goalMap[cg.id], cg);
-  });
-
-  return true;
-}
-
-function pushCloud() {
+function applyCloudData(cloudData) {
+    // Cloud always wins — replaces local data completely, no merging
+    if (!cloudData || !cloudData.tasks) return false;
+    D.tasks = cloudData.tasks;
+    D.goals = cloudData.goals || [];
+    return true;
+  }
+  function mergeFromCloud(cloudData) { return applyCloudData(cloudData); }
+  function pushCloud() {
   if (!ME || isSaving) return;
   isSaving = true;
   lastPushedAt = Date.now();
@@ -383,7 +357,7 @@ function pullCloud(silent) {
   SB.from('user_data').select('todo_data,updated_at').eq('id', ME.id).single()
   .then(function(res) {
     if (res.data && res.data.todo_data) {
-      const merged = mergeFromCloud(res.data.todo_data);
+      const merged = applyCloudData(res.data.todo_data);
       if (merged) { saveLocal(); renderAll(); }
     } else if (dataCount() > 0) {
       pushCloud(); return;
@@ -405,7 +379,7 @@ function setupRealtime() {
     }, function(payload) {
       if (Date.now() - lastPushedAt < 3000) return;
       if (payload.new && payload.new.todo_data) {
-        mergeFromCloud(payload.new.todo_data);
+        applyCloudData(payload.new.todo_data);
         saveLocal(); renderAll();
         toast('Synced from another device', 'ok');
       }
