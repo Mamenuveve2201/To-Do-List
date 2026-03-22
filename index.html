@@ -547,26 +547,34 @@ function renderToday() {
 }
 
 function renderAll_tasks() {
-  const active = D.tasks.filter(t=>!t.done);
-  if (!active.length) return `<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No tasks yet — tap + to add one</div></div>`;
-
-  // Group by category
-  const groups = {};
-  active.forEach(t => {
-    const g = t.category || 'Other';
-    if (!groups[g]) groups[g] = [];
-    groups[g].push(t);
-  });
-
-  return Object.entries(groups).map(([cat, tasks]) =>
-    `<div class="section-label">${cat.toUpperCase()}</div>` +
-    tasks.sort((a,b) => {
-      const pa = {HIGH:0,MEDIUM:1,LOW:2}[a.priority]??3;
-      const pb = {HIGH:0,MEDIUM:1,LOW:2}[b.priority]??3;
-      return pa-pb;
-    }).map(taskCardHTML).join('')
-  ).join('');
-}
+    const active = D.tasks.filter(t=>!t.done);
+    if (!active.length) return `<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No tasks yet — tap + to add one</div></div>`;
+    // Sort by date ascending, no-date tasks go to the end
+    active.sort((a,b) => {
+      const da = a.dueDate || '9999-99-99';
+      const db = b.dueDate || '9999-99-99';
+      return da.localeCompare(db);
+    });
+    // Group by date
+    const groups = {};
+    active.forEach(t => {
+      const key = t.dueDate || 'no-date';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(t);
+    });
+    const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    return Object.entries(groups).map(([dateKey, tasks]) => {
+      let label;
+      if (dateKey === 'no-date') {
+        label = 'NO DATE';
+      } else {
+        const [y,m,d] = dateKey.split('-').map(Number);
+        const dt = new Date(y, m-1, d);
+        label = dayNames[dt.getDay()] + ' ' + dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+      }
+      return `<div class="section-label">${label}</div>` + tasks.map(taskCardHTML).join('');
+    }).join('');
+  }
 
 function renderGoals() {
   let html = `<div style="padding:12px 12px 0;display:flex;justify-content:flex-end">
