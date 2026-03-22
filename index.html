@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0f">
+<link rel="manifest" href="manifest.json">
+<title>TASKS</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0a0f;--bg2:#111118;--bg3:#18181f;--bg4:#1e1e27;--border:#2a2a38;--border2:#333345;--text:#f0f0f5;--text2:#9090a8;--text3:#5a5a72;--green:#00e5a0;--green2:#00b880;--red:#ff4d6a;--red2:#cc2d47;--yellow:#f5c542;--blue:#4d90ff;--purple:#9b7ec8;--mono:'DM Mono',monospace;--sans:'Syne',sans-serif;--safe-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:14px}
+.hide{display:none!important}
+
+/* AUTH */
+#auth{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px}
+.auth-logo{font-family:var(--sans);font-size:36px;font-weight:800;letter-spacing:-2px;background:linear-gradient(135deg,var(--green),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px}
+.auth-sub{color:var(--text3);font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:36px}
+.auth-tabs{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:20px;width:100%;max-width:320px}
+.auth-tab{flex:1;padding:10px;background:none;border:none;color:var(--text2);font-family:var(--mono);font-size:13px;cursor:pointer}
+.auth-tab.active{background:var(--bg4);color:var(--text)}
+.auth-form{width:100%;max-width:320px;display:flex;flex-direction:column;gap:10px}
+.auth-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:14px;padding:12px 14px;outline:none}
+.auth-input:focus{border-color:var(--purple)}
+.auth-btn{width:100%;background:linear-gradient(135deg,var(--green2),var(--purple));border:none;border-radius:8px;color:#000;font-family:var(--sans);font-size:14px;font-weight:700;padding:13px;cursor:pointer;margin-top:4px}
+.auth-msg{font-size:12px;min-height:18px;text-align:center;margin-top:4px;color:var(--text3)}
+.auth-msg.err{color:var(--red)}
+.auth-msg.ok{color:var(--green)}
+.auth-link{color:var(--text3);font-size:12px;text-align:center;cursor:pointer;margin-top:8px}
+
+/* APP SHELL */
+#app{display:flex;flex-direction:column;height:100%;overflow:hidden}
+
+/* HEADER */
+.app-header{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 16px;height:54px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.app-title{font-family:var(--sans);font-size:18px;font-weight:800;letter-spacing:2px;color:var(--text)}
+.header-right{display:flex;align-items:center;gap:8px}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--green);transition:background .3s}
+.sync-dot.busy{background:var(--yellow);animation:pulse 1s infinite}
+.sync-dot.err{background:var(--red)}
+.icon-btn{background:none;border:none;color:var(--text2);cursor:pointer;padding:6px;border-radius:6px;font-size:18px;display:flex;align-items:center;justify-content:center}
+.icon-btn:hover{background:var(--bg4);color:var(--text)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* STATS BAR */
+.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border-bottom:1px solid var(--border);flex-shrink:0}
+.stat-box{background:var(--bg2);padding:10px 8px;text-align:center}
+.stat-label{font-size:9px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}
+.stat-val{font-family:var(--sans);font-size:22px;font-weight:700}
+.stat-val.green{color:var(--green)}
+.stat-val.red{color:var(--red)}
+.stat-val.yellow{color:var(--yellow)}
+.stat-val.blue{color:var(--blue)}
+
+/* NAV TABS */
+.nav-tabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.nav-tabs::-webkit-scrollbar{display:none}
+.nav-tab{flex-shrink:0;padding:10px 16px;background:none;border:none;color:var(--text3);font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.nav-tab.active{color:var(--green);border-bottom-color:var(--green)}
+
+/* CONTENT */
+#content{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:80px}
+#content::-webkit-scrollbar{width:3px}
+#content::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* FAB */
+.fab{position:fixed;bottom:calc(20px + var(--safe-bottom));right:20px;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--green2),var(--purple));border:none;color:#000;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,229,160,.3);z-index:40;transition:transform .15s}
+.fab:active{transform:scale(.92)}
+
+/* TASK CARDS */
+.section-label{font-size:10px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;padding:16px 16px 6px;display:flex;align-items:center;gap:8px}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border)}
+
+.task-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;margin:0 12px 8px;overflow:hidden;transition:opacity .2s}
+.task-card.done-card{opacity:.5}
+.task-header{display:flex;align-items:flex-start;gap:12px;padding:14px}
+.task-check{width:24px;height:24px;border-radius:50%;border:2px solid var(--border2);background:transparent;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:transparent;margin-top:1px;transition:all .2s}
+.task-check.checked{background:var(--green);border-color:var(--green);color:#000}
+.task-body{flex:1;min-width:0}
+.task-title{font-size:14px;font-weight:500;color:var(--text);margin-bottom:4px;line-height:1.4}
+.task-title.done-title{text-decoration:line-through;color:var(--text3)}
+.task-desc{font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:6px}
+.task-meta{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.tag{font-size:10px;padding:2px 7px;border-radius:12px;letter-spacing:.5px;font-weight:500}
+.tag-priority-HIGH{background:rgba(255,77,106,.15);color:var(--red);border:1px solid rgba(255,77,106,.3)}
+.tag-priority-MEDIUM{background:rgba(245,197,66,.15);color:var(--yellow);border:1px solid rgba(245,197,66,.3)}
+.tag-priority-LOW{background:rgba(77,144,255,.15);color:var(--blue);border:1px solid rgba(77,144,255,.3)}
+.tag-cat{background:var(--bg4);color:var(--text2);border:1px solid var(--border2)}
+.tag-due{background:rgba(0,229,160,.1);color:var(--green);border:1px solid rgba(0,229,160,.2)}
+.tag-due.overdue{background:rgba(255,77,106,.15);color:var(--red);border:1px solid rgba(255,77,106,.3)}
+.tag-progress{background:var(--bg4);color:var(--text3);border:1px solid var(--border)}
+.task-actions{display:flex;gap:0;border-top:1px solid var(--border)}
+.task-btn{flex:1;background:none;border:none;color:var(--text3);padding:8px;font-size:12px;cursor:pointer;font-family:var(--mono);letter-spacing:.5px}
+.task-btn:hover{background:var(--bg4);color:var(--text)}
+.task-btn.danger:hover{color:var(--red)}
+
+/* SUBTASKS */
+.subtasks{padding:0 14px 12px 50px;display:flex;flex-direction:column;gap:6px}
+.subtask-row{display:flex;align-items:center;gap:8px}
+.subtask-check{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--border2);background:transparent;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:transparent;transition:all .2s}
+.subtask-check.checked{background:var(--green);border-color:var(--green);color:#000}
+.subtask-text{font-size:12px;color:var(--text2)}
+.subtask-text.done{text-decoration:line-through;color:var(--text3)}
+
+/* EMPTY STATE */
+.empty{text-align:center;padding:48px 24px;color:var(--text3)}
+.empty-icon{font-size:40px;margin-bottom:12px;opacity:.4}
+.empty-text{font-size:13px;letter-spacing:1px}
+
+/* GOALS */
+.goal-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;margin:0 12px 8px;padding:16px}
+.goal-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.goal-name{font-size:14px;font-weight:500;color:var(--text)}
+.goal-pct{font-family:var(--sans);font-size:20px;font-weight:700;color:var(--green)}
+.goal-desc{font-size:12px;color:var(--text2);margin-bottom:10px}
+.goal-bar{height:6px;background:var(--bg4);border-radius:3px;overflow:hidden;margin-bottom:8px}
+.goal-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--green2),var(--green));transition:width .4s ease}
+.goal-meta{font-size:11px;color:var(--text3)}
+.goal-actions{display:flex;gap:0;border-top:1px solid var(--border);margin:12px -16px -16px;border-radius:0 0 12px 12px;overflow:hidden}
+.goal-btn{flex:1;background:none;border:none;color:var(--text3);padding:8px;font-size:12px;cursor:pointer;font-family:var(--mono)}
+.goal-btn:hover{background:var(--bg4);color:var(--text)}
+
+/* HISTORY */
+.hist-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;margin:0 12px 6px;padding:12px 14px;display:flex;align-items:center;gap:12px;opacity:.7}
+.hist-check{width:20px;height:20px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:11px;color:#000;flex-shrink:0}
+.hist-info{flex:1;min-width:0}
+.hist-title{font-size:13px;color:var(--text2);text-decoration:line-through;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hist-meta{font-size:11px;color:var(--text3);margin-top:2px}
+.hist-reopen{background:none;border:1px solid var(--border);color:var(--text3);padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:var(--mono);flex-shrink:0}
+
+/* OVERLAY/MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:18px 18px 0 0;padding:20px 20px 32px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto}
+.modal-title{font-family:var(--sans);font-size:17px;font-weight:700;margin-bottom:18px;color:var(--text)}
+.form-row{margin-bottom:12px}
+.form-label{font-size:11px;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:5px}
+.form-input{width:100%;background:var(--bg4);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:14px;padding:11px 14px;outline:none;resize:vertical}
+.form-input:focus{border-color:var(--purple)}
+.form-select{width:100%;background:var(--bg4);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:14px;padding:11px 14px;outline:none;appearance:none;cursor:pointer}
+.modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+.btn-cancel{background:var(--bg4);border:1px solid var(--border);color:var(--text2);border-radius:8px;padding:12px;font-family:var(--mono);font-size:13px;cursor:pointer}
+.btn-save{background:linear-gradient(135deg,var(--green2),var(--purple));border:none;color:#000;border-radius:8px;padding:12px;font-family:var(--sans);font-size:14px;font-weight:700;cursor:pointer}
+.btn-delete{background:var(--bg4);border:1px solid var(--red2);color:var(--red);border-radius:8px;padding:12px;font-family:var(--mono);font-size:13px;cursor:pointer;grid-column:1/-1}
+
+/* SUBTASK EDITOR */
+.subtask-editor{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.subtask-edit-row{display:flex;gap:6px;align-items:center}
+.subtask-edit-input{flex:1;background:var(--bg4);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:13px;padding:8px 10px;outline:none}
+.subtask-remove{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:4px}
+.add-subtask-btn{background:none;border:1px dashed var(--border);color:var(--text3);border-radius:6px;padding:7px;font-family:var(--mono);font-size:12px;cursor:pointer;width:100%;margin-top:4px}
+.add-subtask-btn:hover{border-color:var(--green);color:var(--green)}
+
+/* PROFILE MODAL */
+.profile-email{font-size:14px;color:var(--text2);margin-bottom:16px;text-align:center;padding:12px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)}
+.profile-stat{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px}
+.profile-stat:last-of-type{border-bottom:none}
+
+/* TOAST */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--bg4);border:1px solid var(--border2);color:var(--text);font-size:13px;padding:10px 18px;border-radius:20px;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+.toast.ok{border-color:rgba(0,229,160,.4);color:var(--green)}
+.toast.err{border-color:rgba(255,77,106,.4);color:var(--red)}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth" class="hide">
+  <div class="auth-logo">TASKS</div>
+  <div class="auth-sub">get things done</div>
+  <div class="auth-tabs">
+    <button class="auth-tab active" onclick="authTab('in')">Sign In</button>
+    <button class="auth-tab" onclick="authTab('up')">Sign Up</button>
+  </div>
+  <div class="auth-form" id="form-in">
+    <input class="auth-input" id="em-in" type="email" placeholder="email address" autocomplete="email"/>
+    <input class="auth-input" id="pw-in" type="password" placeholder="password" autocomplete="current-password"/>
+    <button class="auth-btn" onclick="doSignIn()">Sign In</button>
+    <div class="auth-link" onclick="authTab('forgot')">Forgot password?</div>
+  </div>
+  <div class="auth-form hide" id="form-up">
+    <input class="auth-input" id="em-up" type="email" placeholder="email address" autocomplete="email"/>
+    <input class="auth-input" id="pw-up" type="password" placeholder="password (min 6 chars)" autocomplete="new-password"/>
+    <button class="auth-btn" onclick="doSignUp()">Create Account</button>
+  </div>
+  <div class="auth-form hide" id="form-forgot">
+    <div style="font-size:12px;color:var(--text3);text-align:center;margin-bottom:10px">Enter your email to receive a reset link.</div>
+    <input class="auth-input" id="em-forgot" type="email" placeholder="email address"/>
+    <button class="auth-btn" onclick="doForgot()">Send Reset Link</button>
+    <div class="auth-link" onclick="authTab('in')">← Back to sign in</div>
+  </div>
+  <div class="auth-msg" id="auth-msg"></div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hide">
+  <div class="app-header">
+    <div class="app-title">TASKS</div>
+    <div class="header-right">
+      <div class="sync-dot" id="sync-dot"></div>
+      <button class="icon-btn" onclick="openProfile()">👤</button>
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-box">
+      <div class="stat-label">Due Today</div>
+      <div class="stat-val green" id="stat-today">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Overdue</div>
+      <div class="stat-val red" id="stat-overdue">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">This Week</div>
+      <div class="stat-val yellow" id="stat-week">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Completed</div>
+      <div class="stat-val blue" id="stat-done">0</div>
+    </div>
+  </div>
+
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-tab="today" onclick="setTab('today')">Today</button>
+    <button class="nav-tab" data-tab="all" onclick="setTab('all')">All Tasks</button>
+    <button class="nav-tab" data-tab="goals" onclick="setTab('goals')">Goals</button>
+    <button class="nav-tab" data-tab="history" onclick="setTab('history')">History</button>
+  </div>
+
+  <div id="content"></div>
+
+  <button class="fab" onclick="openAddModal()" id="fab">+</button>
+</div>
+
+<!-- MODAL -->
+<div class="overlay hide" id="overlay" onclick="closeModalOutside(event)">
+  <div class="modal" id="modal-body"></div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+// ─── SUPABASE ───────────────────────────────────────────────
+const SB = supabase.createClient(
+  'https://uvqjswdfcixwktgvnzbq.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2cWpzd2RmY2l4d2t0Z3ZuemJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIzNDExMzEsImV4cCI6MjA4NzkxNzEzMX0.SMB9fnxmLHFNTNkJk47UFpMqlccv_wvJOYAicvGxqoI'
+);
+
+// ─── DATA ────────────────────────────────────────────────────
+const LK = 'tasks_v3';
+let ME = null;
+let D = { tasks: [], goals: [] };
+let activeTab = 'today';
+let saveT = null;
+let lastPushedAt = 0;
+let isSaving = false;
+let realtimeChannel = null;
+
+// ─── UTILS ───────────────────────────────────────────────────
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+function today() {
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function daysDiff(dateStr) {
+  if (!dateStr) return null;
+  const t = new Date(today()), d = new Date(dateStr);
+  return Math.round((d-t)/(1000*60*60*24));
+}
+function fmtDate(dateStr) {
+  if (!dateStr) return '';
+  const diff = daysDiff(dateStr);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Tomorrow';
+  if (diff === -1) return 'Yesterday';
+  if (diff < 0) return Math.abs(diff)+'d overdue';
+  if (diff <= 7) return diff+'d left';
+  return new Date(dateStr).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+function isOverdue(t) { return t.dueDate && daysDiff(t.dueDate) < 0 && !t.done; }
+function isDueToday(t) { return t.dueDate && daysDiff(t.dueDate) === 0 && !t.done; }
+function isDueThisWeek(t) {
+  if (!t.dueDate || t.done) return false;
+  const d = daysDiff(t.dueDate);
+  return d > 0 && d <= 7;
+}
+function subtaskProgress(t) {
+  if (!t.subtasks || !t.subtasks.length) return null;
+  const done = t.subtasks.filter(s=>s.done).length;
+  return done+'/'+t.subtasks.length+' DONE';
+}
+
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (type ? ' '+type : '');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ─── SYNC ────────────────────────────────────────────────────
+function setSyncUI(st) {
+  const dot = document.getElementById('sync-dot');
+  if (!dot) return;
+  dot.className = 'sync-dot' + (st === 'busy' ? ' busy' : st === 'err' ? ' err' : '');
+}
+
+function saveLocal() {
+  try { localStorage.setItem(LK, JSON.stringify(D)); } catch(e) {}
+}
+
+function loadLocal() {
+  try {
+    const s = localStorage.getItem(LK);
+    if (s) { const p = JSON.parse(s); if (p && p.tasks) D = p; }
+  } catch(e) {}
+  if (!D.tasks) D.tasks = [];
+  if (!D.goals) D.goals = [];
+}
+
+function dataCount() { return D.tasks.length + D.goals.length; }
+
+function applyCloudData(cloudData) {
+    // Cloud always wins — replace local completely, no merging
+    if (!cloudData || !cloudData.tasks) return false;
+    D.tasks = cloudData.tasks;
+    D.goals = cloudData.goals || [];
+    return true;
+  }
+  function mergeFromCloud(cloudData) { return applyCloudData(cloudData); }
+  function pushCloud() {
+  if (!ME || isSaving) return;
+  isSaving = true;
+  lastPushedAt = Date.now();
+  setSyncUI('busy');
+  SB.from('user_data').upsert(
+    { id: ME.id, todo_data: JSON.parse(JSON.stringify(D)), updated_at: new Date().toISOString() },
+    { onConflict: 'id' }
+  ).then(function(res) {
+    isSaving = false;
+    setSyncUI(res.error ? 'err' : 'ok');
+    if (res.error) toast('Sync failed - saved locally', 'err');
+  });
+}
+
+function pullCloud(silent) {
+  if (!ME) return;
+  if (!silent) setSyncUI('busy');
+  SB.from('user_data').select('todo_data,updated_at').eq('id', ME.id).single()
+  .then(function(res) {
+    if (res.data && res.data.todo_data) {
+      const merged = applyCloudData(res.data.todo_data);
+      if (merged) { saveLocal(); renderAll(); }
+    } else if (dataCount() > 0) {
+      pushCloud(); return;
+    }
+    setSyncUI('ok');
+  })
+  .catch(function() { setSyncUI('ok'); });
+}
+
+function setupRealtime() {
+  if (realtimeChannel) SB.removeChannel(realtimeChannel);
+  if (!ME) return;
+  realtimeChannel = SB.channel('todo_changes')
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'user_data',
+      filter: 'id=eq.' + ME.id
+    }, function(payload) {
+      if (Date.now() - lastPushedAt < 3000) return;
+      if (payload.new && payload.new.todo_data) {
+        applyCloudData(payload.new.todo_data);
+        saveLocal(); renderAll();
+        toast('Synced from another device', 'ok');
+      }
+    })
+    .subscribe();
+}
+
+function onChange() {
+  saveLocal();
+  setSyncUI('busy');
+  clearTimeout(saveT);
+  saveT = setTimeout(pushCloud, 1200);
+}
+
+// ─── AUTH ────────────────────────────────────────────────────
+function authTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((b,i) =>
+    b.classList.toggle('active', (i===0&&tab==='in')||(i===1&&tab==='up')));
+  document.getElementById('form-in').classList.toggle('hide', tab!=='in');
+  document.getElementById('form-up').classList.toggle('hide', tab!=='up');
+  document.getElementById('form-forgot').classList.toggle('hide', tab!=='forgot');
+  document.getElementById('auth-msg').textContent = '';
+}
+
+function setAuthMsg(msg, type) {
+  const el = document.getElementById('auth-msg');
+  el.textContent = msg;
+  el.className = 'auth-msg' + (type?' '+type:'');
+}
+
+async function doSignIn() {
+  const em = document.getElementById('em-in').value.trim();
+  const pw = document.getElementById('pw-in').value;
+  if (!em||!pw) { setAuthMsg('Enter email and password','err'); return; }
+  setAuthMsg('Signing in...','');
+  const {error} = await SB.auth.signInWithPassword({email:em,password:pw});
+  if (error) setAuthMsg(error.message,'err');
+}
+
+async function doSignUp() {
+  const em = document.getElementById('em-up').value.trim();
+  const pw = document.getElementById('pw-up').value;
+  if (!em||!pw) { setAuthMsg('Enter email and password','err'); return; }
+  if (pw.length<6) { setAuthMsg('Password must be at least 6 characters','err'); return; }
+  setAuthMsg('Creating account...','');
+  const {error} = await SB.auth.signUp({email:em,password:pw});
+  if (error) setAuthMsg(error.message,'err');
+  else setAuthMsg('✓ Check your email to confirm your account','ok');
+}
+
+async function doForgot() {
+  const em = document.getElementById('em-forgot').value.trim();
+  if (!em) { setAuthMsg('Enter your email','err'); return; }
+  const {error} = await SB.auth.resetPasswordForEmail(em);
+  if (error) setAuthMsg(error.message,'err');
+  else setAuthMsg('✓ Reset link sent!','ok');
+}
+
+async function doSignOut() { renderAll(); return; // auth removed
+  const _unused = async () => {
+  closeMo('profile');
+  if (confirm('Sign out?')) {
+    if (realtimeChannel) SB.removeChannel(realtimeChannel);
+    await SB.auth.signOut();
+    ME = null; D = {tasks:[],goals:[]};
+    document.getElementById('auth').classList.remove('hide');
+    document.getElementById('app').classList.add('hide');
+  }
+}
+  };
+
+function showApp() {
+  document.getElementById('auth').classList.add('hide');
+  document.getElementById('app').classList.remove('hide');
+}
+function showAuth() {
+  document.getElementById('auth').classList.remove('hide');
+  document.getElementById('app').classList.add('hide');
+}
+
+// ─── NAVIGATION ──────────────────────────────────────────────
+function setTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.nav-tab').forEach(b => b.classList.toggle('active', b.dataset.tab===tab));
+  document.getElementById('fab').classList.toggle('hide', tab==='history');
+  renderAll();
+}
+
+// ─── RENDER ──────────────────────────────────────────────────
+function renderAll() {
+  updateStats();
+  const content = document.getElementById('content');
+  if (activeTab === 'today') content.innerHTML = renderToday();
+  else if (activeTab === 'all') content.innerHTML = renderAll_tasks();
+  else if (activeTab === 'goals') content.innerHTML = renderGoals();
+  else if (activeTab === 'history') content.innerHTML = renderHistory();
+}
+
+function updateStats() {
+  const active = D.tasks.filter(t => !t.done);
+  document.getElementById('stat-today').textContent = active.filter(isDueToday).length;
+  document.getElementById('stat-overdue').textContent = active.filter(isOverdue).length;
+  document.getElementById('stat-week').textContent = active.filter(isDueThisWeek).length;
+  document.getElementById('stat-done').textContent = D.tasks.filter(t=>t.done).length;
+}
+
+function taskCardHTML(t) {
+  const overdue = isOverdue(t);
+  const dueStr = fmtDate(t.dueDate);
+  const prog = subtaskProgress(t);
+  const subtasksHTML = t.subtasks && t.subtasks.length ? `
+    <div class="subtasks">
+      ${t.subtasks.map(s=>`
+        <div class="subtask-row">
+          <button class="subtask-check ${s.done?'checked':''}" onclick="toggleSubtask('${t.id}','${s.id}')">✓</button>
+          <span class="subtask-text ${s.done?'done':''}">${s.text}</span>
+        </div>`).join('')}
+    </div>` : '';
+
+  return `<div class="task-card ${t.done?'done-card':''}">
+    <div class="task-header">
+      <button class="task-check ${t.done?'checked':''}" onclick="toggleTask('${t.id}')">✓</button>
+      <div class="task-body">
+        <div class="task-title ${t.done?'done-title':''}">${t.title}</div>
+        ${t.desc ? `<div class="task-desc">${t.desc}</div>` : ''}
+        <div class="task-meta">
+          ${t.priority ? `<span class="tag tag-priority-${t.priority}">${t.priority}</span>` : ''}
+          ${t.category ? `<span class="tag tag-cat">${t.category}</span>` : ''}
+          ${dueStr ? `<span class="tag tag-due ${overdue?'overdue':''}">${dueStr}</span>` : ''}
+          ${prog ? `<span class="tag tag-progress">${prog}</span>` : ''}
+        </div>
+      </div>
+    </div>
+    ${subtasksHTML}
+    <div class="task-actions">
+      <button class="task-btn" onclick="openEditTask('${t.id}')">✎ Edit</button>
+      <button class="task-btn danger" onclick="deleteTask('${t.id}')">✕ Delete</button>
+    </div>
+  </div>`;
+}
+
+function renderToday() {
+  const overdue = D.tasks.filter(isOverdue).sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
+  const dueToday = D.tasks.filter(isDueToday);
+  const noDate = D.tasks.filter(t=>!t.done&&!t.dueDate);
+
+  let html = '';
+  if (!overdue.length && !dueToday.length && !noDate.length) {
+    html = `<div class="empty"><div class="empty-icon">✓</div><div class="empty-text">All caught up!</div></div>`;
+  }
+  if (overdue.length) {
+    html += `<div class="section-label">OVERDUE</div>` + overdue.map(taskCardHTML).join('');
+  }
+  if (dueToday.length) {
+    html += `<div class="section-label">DUE TODAY</div>` + dueToday.map(taskCardHTML).join('');
+  }
+  if (noDate.length) {
+    html += `<div class="section-label">NO DATE</div>` + noDate.map(taskCardHTML).join('');
+  }
+  return html;
+}
+
+function renderAll_tasks() {
+  const active = D.tasks.filter(t=>!t.done);
+  if (!active.length) return `<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No tasks yet — tap + to add one</div></div>`;
+
+  // Group by category
+  const groups = {};
+  active.forEach(t => {
+    const g = t.category || 'Other';
+    if (!groups[g]) groups[g] = [];
+    groups[g].push(t);
+  });
+
+  return Object.entries(groups).map(([cat, tasks]) =>
+    `<div class="section-label">${cat.toUpperCase()}</div>` +
+    tasks.sort((a,b) => {
+      const pa = {HIGH:0,MEDIUM:1,LOW:2}[a.priority]??3;
+      const pb = {HIGH:0,MEDIUM:1,LOW:2}[b.priority]??3;
+      return pa-pb;
+    }).map(taskCardHTML).join('')
+  ).join('');
+}
+
+function renderGoals() {
+  let html = `<div style="padding:12px 12px 0;display:flex;justify-content:flex-end">
+    <button onclick="openAddGoal()" style="background:none;border:1px solid var(--border);color:var(--text3);padding:6px 12px;border-radius:20px;font-family:var(--mono);font-size:11px;cursor:pointer">+ Add Goal</button>
+  </div>`;
+
+  if (!D.goals.length) {
+    html += `<div class="empty"><div class="empty-icon">🎯</div><div class="empty-text">No goals yet</div></div>`;
+    return html;
+  }
+
+  D.goals.forEach(g => {
+    const pct = g.target > 0 ? Math.min(100, Math.round((g.current/g.target)*100)) : 0;
+    html += `<div class="goal-card">
+      <div class="goal-top">
+        <div class="goal-name">${g.name}</div>
+        <div class="goal-pct">${pct}%</div>
+      </div>
+      ${g.desc ? `<div class="goal-desc">${g.desc}</div>` : ''}
+      <div class="goal-bar"><div class="goal-fill" style="width:${pct}%"></div></div>
+      <div class="goal-meta">${g.current} / ${g.target} ${g.unit||''}</div>
+      <div class="goal-actions">
+        <button class="goal-btn" onclick="updateGoalProgress('${g.id}')">+ Update</button>
+        <button class="goal-btn" onclick="openEditGoal('${g.id}')">✎ Edit</button>
+        <button class="goal-btn" onclick="deleteGoal('${g.id}')">✕</button>
+      </div>
+    </div>`;
+  });
+  return html;
+}
+
+function renderHistory() {
+  const done = D.tasks.filter(t=>t.done).sort((a,b)=>(b.completedAt||'').localeCompare(a.completedAt||''));
+  if (!done.length) return `<div class="empty"><div class="empty-icon">📜</div><div class="empty-text">No completed tasks yet</div></div>`;
+
+  return done.map(t => `
+    <div class="hist-card">
+      <div class="hist-check">✓</div>
+      <div class="hist-info">
+        <div class="hist-title">${t.title}</div>
+        <div class="hist-meta">${t.category||''}${t.completedAt?' · '+new Date(t.completedAt).toLocaleDateString('en-US',{month:'short',day:'numeric'}):''}</div>
+      </div>
+      <button class="hist-reopen" onclick="reopenTask('${t.id}')">Reopen</button>
+    </div>`).join('');
+}
+
+// ─── TASK ACTIONS ────────────────────────────────────────────
+function toggleTask(id) {
+  const t = D.tasks.find(x=>x.id===id);
+  if (!t) return;
+  t.done = !t.done;
+  t.completedAt = t.done ? new Date().toISOString() : null;
+  onChange(); renderAll();
+  if (t.done) toast('Task completed ✓', 'ok');
+}
+
+function toggleSubtask(taskId, subId) {
+  const t = D.tasks.find(x=>x.id===taskId);
+  if (!t || !t.subtasks) return;
+  const s = t.subtasks.find(x=>x.id===subId);
+  if (s) { s.done = !s.done; onChange(); renderAll(); }
+}
+
+function deleteTask(id) {
+  if (!confirm('Delete this task?')) return;
+  D.tasks = D.tasks.filter(x=>x.id!==id);
+  onChange(); renderAll(); toast('Task deleted');
+}
+
+function reopenTask(id) {
+  const t = D.tasks.find(x=>x.id===id);
+  if (!t) return;
+  t.done = false; t.completedAt = null;
+  onChange(); renderAll(); toast('Task reopened');
+}
+
+function deleteGoal(id) {
+  if (!confirm('Delete this goal?')) return;
+  D.goals = D.goals.filter(x=>x.id!==id);
+  onChange(); renderAll(); toast('Goal deleted');
+}
+
+function updateGoalProgress(id) {
+  const g = D.goals.find(x=>x.id===id);
+  if (!g) return;
+  const val = prompt('Current progress ('+g.unit+')?', g.current);
+  if (val === null) return;
+  g.current = parseFloat(val) || 0;
+  onChange(); renderAll();
+}
+
+// ─── MODALS ──────────────────────────────────────────────────
+function openMo(html) {
+  document.getElementById('modal-body').innerHTML = html;
+  document.getElementById('overlay').classList.remove('hide');
+  setTimeout(() => {
+    const inp = document.querySelector('#modal-body input:not([type=hidden]),#modal-body textarea');
+    if (inp) inp.focus();
+  }, 100);
+}
+function closeMo(id) {
+  document.getElementById('overlay').classList.add('hide');
+}
+function closeModalOutside(e) {
+  if (e.target === document.getElementById('overlay')) closeMo();
+}
+
+function openAddModal() {
+  if (activeTab === 'goals') { openAddGoal(); return; }
+  openTaskModal();
+}
+
+function openTaskModal(task) {
+  const t = task || {id:uid(),title:'',desc:'',priority:'MEDIUM',category:'',dueDate:'',subtasks:[]};
+  const isEdit = !!task;
+  openMo(`
+    <div class="modal-title">${isEdit?'Edit Task':'New Task'}</div>
+    <div class="form-row">
+      <div class="form-label">Title</div>
+      <input class="form-input" id="f-title" value="${t.title}" placeholder="What needs to be done?"/>
+    </div>
+    <div class="form-row">
+      <div class="form-label">Description</div>
+      <textarea class="form-input" id="f-desc" rows="2" placeholder="Optional details...">${t.desc||''}</textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-label">Priority</div>
+      <select class="form-select" id="f-priority">
+        <option value="HIGH" ${t.priority==='HIGH'?'selected':''}>HIGH</option>
+        <option value="MEDIUM" ${t.priority==='MEDIUM'?'selected':''}>MEDIUM</option>
+        <option value="LOW" ${t.priority==='LOW'?'selected':''}>LOW</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-label">Category</div>
+      <input class="form-input" id="f-cat" value="${t.category||''}" placeholder="e.g. School, Work, Personal"/>
+    </div>
+    <div class="form-row">
+      <div class="form-label">Due Date</div>
+      <input class="form-input" id="f-due" type="date" value="${t.dueDate||''}"/>
+    </div>
+    <div class="form-row">
+      <div class="form-label">Subtasks</div>
+      <div class="subtask-editor" id="subtask-editor">
+        ${(t.subtasks||[]).map(s=>`
+          <div class="subtask-edit-row">
+            <input class="subtask-edit-input" value="${s.text}" data-sid="${s.id}"/>
+            <button class="subtask-remove" onclick="removeSubtaskField(this)">✕</button>
+          </div>`).join('')}
+      </div>
+      <button class="add-subtask-btn" onclick="addSubtaskField()">+ Add subtask</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeMo()">Cancel</button>
+      <button class="btn-save" onclick="saveTask('${t.id}',${isEdit})">Save</button>
+      ${isEdit?`<button class="btn-delete" onclick="deleteTask('${t.id}');closeMo()">Delete Task</button>`:''}
+    </div>`);
+}
+
+function openEditTask(id) {
+  const t = D.tasks.find(x=>x.id===id);
+  if (t) openTaskModal(t);
+}
+
+function addSubtaskField() {
+  const ed = document.getElementById('subtask-editor');
+  const row = document.createElement('div');
+  row.className = 'subtask-edit-row';
+  row.innerHTML = `<input class="subtask-edit-input" placeholder="Subtask..." data-sid="${uid()}"/>
+    <button class="subtask-remove" onclick="removeSubtaskField(this)">✕</button>`;
+  ed.appendChild(row);
+  row.querySelector('input').focus();
+}
+
+function removeSubtaskField(btn) {
+  btn.parentElement.remove();
+}
+
+function saveTask(id, isEdit) {
+  const title = document.getElementById('f-title').value.trim();
+  if (!title) { toast('Enter a title','err'); return; }
+
+  const subtaskInputs = document.querySelectorAll('#subtask-editor .subtask-edit-input');
+  const newSubtasks = Array.from(subtaskInputs)
+    .filter(i=>i.value.trim())
+    .map(i => {
+      const existingSid = i.dataset.sid;
+      const existingTask = isEdit ? D.tasks.find(t=>t.id===id) : null;
+      const existing = existingTask ? (existingTask.subtasks||[]).find(s=>s.id===existingSid) : null;
+      return { id: existingSid || uid(), text: i.value.trim(), done: existing ? existing.done : false };
+    });
+
+  if (isEdit) {
+    const t = D.tasks.find(x=>x.id===id);
+    if (t) {
+      t.title = title;
+      t.desc = document.getElementById('f-desc').value.trim();
+      t.priority = document.getElementById('f-priority').value;
+      t.category = document.getElementById('f-cat').value.trim();
+      t.dueDate = document.getElementById('f-due').value || null;
+      t.subtasks = newSubtasks;
+    }
+  } else {
+    D.tasks.unshift({
+      id, title,
+      desc: document.getElementById('f-desc').value.trim(),
+      priority: document.getElementById('f-priority').value,
+      category: document.getElementById('f-cat').value.trim(),
+      dueDate: document.getElementById('f-due').value || null,
+      subtasks: newSubtasks,
+      done: false, completedAt: null,
+      createdAt: new Date().toISOString()
+    });
+  }
+  closeMo(); onChange(); renderAll();
+  toast(isEdit ? 'Task updated' : 'Task added ✓', 'ok');
+}
+
+function openAddGoal() {
+  openGoalModal();
+}
+function openEditGoal(id) {
+  const g = D.goals.find(x=>x.id===id);
+  if (g) openGoalModal(g);
+}
+
+function openGoalModal(goal) {
+  const g = goal || {id:uid(),name:'',desc:'',current:0,target:100,unit:''};
+  const isEdit = !!goal;
+  openMo(`
+    <div class="modal-title">${isEdit?'Edit Goal':'New Goal'}</div>
+    <div class="form-row">
+      <div class="form-label">Goal name</div>
+      <input class="form-input" id="g-name" value="${g.name}" placeholder="e.g. Lose 20 lbs, Save $5000"/>
+    </div>
+    <div class="form-row">
+      <div class="form-label">Description</div>
+      <input class="form-input" id="g-desc" value="${g.desc||''}" placeholder="Optional"/>
+    </div>
+    <div class="form-row">
+      <div class="form-label">Current</div>
+      <input class="form-input" id="g-current" type="number" value="${g.current}" placeholder="0"/>
+    </div>
+    <div class="form-row">
+      <div class="form-label">Target</div>
+      <input class="form-input" id="g-target" type="number" value="${g.target}" placeholder="100"/>
+    </div>
+    <div class="form-row">
+      <div class="form-label">Unit (optional)</div>
+      <input class="form-input" id="g-unit" value="${g.unit||''}" placeholder="e.g. lbs, $, km"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeMo()">Cancel</button>
+      <button class="btn-save" onclick="saveGoal('${g.id}',${isEdit})">Save</button>
+      ${isEdit?`<button class="btn-delete" onclick="deleteGoal('${g.id}');closeMo()">Delete Goal</button>`:''}
+    </div>`);
+}
+
+function saveGoal(id, isEdit) {
+  const name = document.getElementById('g-name').value.trim();
+  if (!name) { toast('Enter a name','err'); return; }
+  const data = {
+    name,
+    desc: document.getElementById('g-desc').value.trim(),
+    current: parseFloat(document.getElementById('g-current').value)||0,
+    target: parseFloat(document.getElementById('g-target').value)||100,
+    unit: document.getElementById('g-unit').value.trim()
+  };
+  if (isEdit) {
+    const g = D.goals.find(x=>x.id===id);
+    if (g) Object.assign(g, data);
+  } else {
+    D.goals.push({ id, ...data, createdAt: new Date().toISOString() });
+  }
+  closeMo(); onChange(); renderAll();
+  toast(isEdit ? 'Goal updated' : 'Goal added ✓', 'ok');
+}
+
+// ─── PROFILE ─────────────────────────────────────────────────
+function openProfile() {
+  const done = D.tasks.filter(t=>t.done).length;
+  const active = D.tasks.filter(t=>!t.done).length;
+  openMo(`
+    <div class="modal-title">Profile</div>
+    <div class="profile-email">${ME?.email||'—'}</div>
+    <div class="profile-stat"><span>Active tasks</span><span>${active}</span></div>
+    <div class="profile-stat"><span>Completed tasks</span><span>${done}</span></div>
+    <div class="profile-stat"><span>Goals</span><span>${D.goals.length}</span></div>
+    <div class="profile-stat"><span>Total tasks ever</span><span>${D.tasks.length}</span></div>
+    <div class="modal-actions" style="margin-top:20px">
+      <button class="btn-cancel" onclick="closeMo()">Close</button>
+      <button class="btn-save" style="background:var(--bg4);border:1px solid var(--border);color:var(--text2)" onclick="forcePull()">↓ Pull Cloud</button>
+    </div>
+    <!-- Sign out removed — no auth needed -->`);
+}
+
+function forcePull() {
+  closeMo();
+  pullCloud();
+  toast('Pulling from cloud...', '');
+}
+
+// ─── BOOT ────────────────────────────────────────────────────
+// Hardcoded user — no login required, syncs to My-First-Budget-App Supabase
+ME = { id: '46ff1227-8bce-4138-9993-3b9f6f2508ef' };
+loadLocal();
+showApp();
+pullCloud(true);
+setupRealtime();
+renderAll();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(function(e) {});
+}
+</script>
+</body>
+</html>
